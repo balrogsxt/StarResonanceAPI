@@ -1,5 +1,6 @@
 # StarResonanceApi
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-brightgreen.svg)](https://www.gnu.org/licenses/agpl-3.0.txt)
+
 项目基于[StarResonanceDamageCounter](https://github.com/dmlgzs/StarResonanceDamageCounter)实现的方案开放更多的一些详细数据API
 
 ### 前置要求
@@ -100,5 +101,7 @@
 
 ## 许可证
 [![AGPLv3](https://www.gnu.org/graphics/agplv3-with-text-162x68.png)](LICENSE)
+
 使用本项目即表示您同意遵守该许可证的条款。
+
 本项目采用 GNU AFFERO GENERAL PUBLIC LICENSE version 3 许可证
