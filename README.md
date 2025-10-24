@@ -1,4 +1,4 @@
-# StarResonanceApi
+# StarResonanceAPI
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-brightgreen.svg)](https://www.gnu.org/licenses/agpl-3.0.txt)
 
 项目基于[StarResonanceDamageCounter](https://github.com/dmlgzs/StarResonanceDamageCounter)实现的方案开放更多的一些详细数据API
@@ -14,12 +14,12 @@
 
 ## 启动参数
 
-| 参数              | 类型     | 默认值  | 说明                                  |
-|-----------------|--------|------|-------------------------------------|
-| --network       | string | auto | 网卡描述,auto为自动选择网卡                    |
-| --expire        | int    | 10   | 怪物数据包超时时间(秒),一定时间后未收到怪物数据包,则认为消失或死亡 |
+| 参数              | 类型     | 默认值 | 说明                                  |
+|-----------------|--------|-----|-------------------------------------|
+| --network       | string |     | 网卡描述,auto为自动选择网卡                    |
+| --expire        | int    | 10  | 怪物数据包超时时间(秒),一定时间后未收到怪物数据包,则认为消失或死亡 |
 | --port          | int    | 8989 | API开放端口                             |
-| --autoCheckTime | int    | 3    | 自动探测活动网卡等待时间(秒)                        |
+| --autoCheckTime | int    | 3   | 自动探测活动网卡等待时间(秒)                        |
 
 
 ## 开放API

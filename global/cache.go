@@ -55,18 +55,21 @@ type Monster struct {
 
 func ClearAllData() {
 	clearMonsterList()
-	clearScene()
 }
 func clearMonsterList() {
 	SceneMonsterListLock.Lock()
 	defer SceneMonsterListLock.Unlock()
 	SceneMonsterList = make(map[uint64]*Monster)
 }
-func clearScene() {
-	CurrentSceneLock.Lock()
-	defer CurrentSceneLock.Unlock()
-	CurrentScene = nil
-}
+
+//func clearScene() {
+//	CurrentSceneLock.Lock()
+//	defer CurrentSceneLock.Unlock()
+//	//玩家坐标去掉,场景切换其他信息不会变动,但是如果是网络中断导致的重新识别服务器会导致当前场景数据被清空
+//	if CurrentScene != nil && CurrentScene.Player != nil{
+//		CurrentScene.Player.Pos = nil
+//	}
+//}
 
 func FindMonsterId(uuid uint64, callback func(*Monster)) {
 	var monster *Monster

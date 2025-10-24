@@ -1,11 +1,11 @@
 package ncap
 
 import (
-	"StarResonanceAPI/global"
-	"StarResonanceAPI/pb"
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/balrogsxt/StarResonanceAPI/global"
+	"github.com/balrogsxt/StarResonanceAPI/pb"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"io"
@@ -161,6 +161,8 @@ func (cd *CapDevice) handlePacket(packet gopacket.Packet) {
 	}
 
 	// 构造服务器标识
+	srcAddr := fmt.Sprintf("%s:%d", ip.SrcIP, tcp.SrcPort)
+	revAddr := fmt.Sprintf("%s:%d", ip.DstIP, tcp.DstPort)
 	srcServer := fmt.Sprintf("%s:%d -> %s:%d", ip.SrcIP, tcp.SrcPort, ip.DstIP, tcp.DstPort)
 	revServer := fmt.Sprintf("%s:%d -> %s:%d", ip.DstIP, tcp.DstPort, ip.SrcIP, tcp.SrcPort)
 
@@ -178,11 +180,10 @@ func (cd *CapDevice) handlePacket(packet gopacket.Packet) {
 			cd.forceReconnect("idle timeout")
 		}
 	}
-
 	// 服务器识别逻辑
-	if cd.currentServer != srcServer {
+	if cd.currentServer != srcServer && cd.currentServer != revServer {
 		findGameServer := false
-		// 尝试通过小包识别服务器 - 增强边界检查
+		//尝试通过小包识别服务器
 		if len(payload) > 10 && payload[4] == 0 {
 			data := payload[10:]
 			if len(data) >= 4 { // 确保至少有4字节可读
@@ -224,7 +225,7 @@ func (cd *CapDevice) handlePacket(packet gopacket.Packet) {
 						cd.clearTcpCache()
 						cd.tcpNextSeq = tcp.Seq + uint32(len(payload))
 						global.ClearAllData()
-						log.Println("识别到场景游戏服务器: ", srcServer)
+						log.Println("识别游戏服务器: ", srcAddr)
 						findGameServer = true
 						break
 					}
@@ -241,7 +242,7 @@ func (cd *CapDevice) handlePacket(packet gopacket.Packet) {
 				cd.clearTcpCache()
 				cd.tcpNextSeq = tcp.Seq + uint32(len(payload))
 				global.ClearAllData()
-				log.Println("识别到游戏服务器: ", srcServer)
+				log.Println("识别游戏服务器: ", srcAddr)
 				findGameServer = true
 			}
 		}
@@ -251,33 +252,25 @@ func (cd *CapDevice) handlePacket(packet gopacket.Packet) {
 				if len(data) >= 4 { // 确保至少有4字节可读
 					reader := bytes.NewReader(data)
 					for {
-						// 读取长度字段
 						lenBuf := make([]byte, 4)
 						n, err := reader.Read(lenBuf)
 						if err != nil || n != 4 {
 							break
 						}
-
 						length := binary.BigEndian.Uint32(lenBuf)
-						// 更严格的长度检查
 						if length < 4 || length > 0x0FFFFFFF {
 							break
 						}
-
-						// 确保不会读取过多数据
 						remaining := reader.Len()
 						if int(length-4) > remaining {
 							break
 						}
-
-						// 读取数据
 						data1 := make([]byte, length-4)
 						n, err = reader.Read(data1)
 						if err != nil || uint32(n) != length-4 {
 							break
 						}
-
-						// 签名验证 - 增强边界检查
+						//检查签名
 						signature := []byte{0x00, 0x06, 0x26, 0xad, 0x66, 0x00}
 						sigLen := len(signature)
 						if len(data1) < 5+sigLen {
@@ -288,21 +281,19 @@ func (cd *CapDevice) handlePacket(packet gopacket.Packet) {
 							break
 						}
 
-						// 处理服务器变更（带TCP序列号更新）
 						if cd.currentServer != revServer {
+							global.ClearAllData()
 							cd.currentServer = revServer
 							cd.clearTcpCache()
-							cd.tcpNextSeq = tcp.Seq
-							global.ClearAllData()
-							log.Printf("识别到游戏服务器FrameUp: " + revServer)
+							cd.tcpNextSeq = tcp.Ack
+							log.Println("识别游戏服务器: ", revAddr)
 							findGameServer = true
+							break
 						}
-						break // 成功处理一次后就退出循环
 					}
 				}
 			}
 		}
-
 		if !findGameServer {
 			//log.Println("不是游戏服务器: ", srcServer)
 			return
@@ -313,7 +304,6 @@ func (cd *CapDevice) handlePacket(packet gopacket.Packet) {
 		return
 	}
 	// TCP流重组
-	//log.Println(fmt.Sprintf("收到服务器数据包: %-5d -> %s", len(payload), srcServer))
 	cd.reassembleTcpStream(tcp, payload, now)
 }
 
@@ -323,12 +313,13 @@ func (cd *CapDevice) reassembleTcpStream(tcp *layers.TCP, payload []byte, now ti
 	if cd.tcpNextSeq == 0 {
 		if len(payload) > 4 && binary.BigEndian.Uint32(payload) < 0x0fffff {
 			cd.tcpNextSeq = tcp.Seq
+			log.Println("可以i确定学列号")
 		} else {
 			// 无法确定初始序列号，使用当前包的序列号
 			cd.tcpNextSeq = tcp.Seq
+			log.Println("无法缺点序列号")
 		}
 	}
-
 	// 缓存TCP数据包
 	seqKey := tcp.Seq
 	cd.tcpCache[seqKey] = make([]byte, len(payload))
@@ -360,7 +351,6 @@ func (cd *CapDevice) reassembleTcpStream(tcp *layers.TCP, payload []byte, now ti
 	if messageBuffer.Len() > 0 {
 		cd.tcpStream.Write(messageBuffer.Bytes())
 	}
-
 	// 解析消息
 	cd.parseMessages()
 }
@@ -371,7 +361,6 @@ func (cd *CapDevice) parseMessages() {
 	currentData := cd.tcpStream.Bytes()
 	dataLen := len(currentData)
 	offset := 0
-
 	for offset < dataLen {
 		// 检查是否有足够的字节读取长度
 		if offset+4 > dataLen {
@@ -645,6 +634,11 @@ func (cd *CapDevice) processSyncSceneData(payload []byte) {
 		})
 	} else {
 		log.Println("场景切换: 未知场景名称")
+		global.UpdateScene(func(info *global.SceneInfo) {
+			if info != nil && info.Scene != nil {
+				info.Scene.Name = ""
+			}
+		})
 	}
 }
 
@@ -736,7 +730,6 @@ func (cd *CapDevice) processSyncContainerData(payload []byte) {
 	vdata := msg.VData
 	global.UpdateScene(func(info *global.SceneInfo) {
 		if info == nil {
-			log.Println("info = nil")
 			return
 		}
 
@@ -782,6 +775,13 @@ func (cd *CapDevice) processSyncContainerData(payload []byte) {
 			lineId := vdata.SceneData.GetLineId() //场景线路ID
 			// 更新场景信息
 			if info.Scene != nil {
+				//先收到线路数据,然后在收到坐标数据
+				if info.Scene.MapId != mapId {
+					//清空坐标
+					if info.Player != nil {
+						info.Player.Pos = nil
+					}
+				}
 				info.Scene.MapId = mapId
 				info.Scene.LineId = lineId
 			}
@@ -813,7 +813,6 @@ func (cd *CapDevice) processSyncToMeDeltaInfo(payload []byte) {
 			}
 		})
 	}
-
 	//获取自身其他信息
 	if baseDelta.Attrs != nil && baseDelta.Attrs.Attrs != nil && len(baseDelta.Attrs.Attrs) > 0 {
 		for _, attr := range baseDelta.Attrs.GetAttrs() {
@@ -826,6 +825,7 @@ func (cd *CapDevice) processSyncToMeDeltaInfo(payload []byte) {
 				}
 				global.UpdateScene(func(sceneInfo *global.SceneInfo) {
 					if sceneInfo != nil && sceneInfo.Player != nil {
+						//log.Println("当前坐标:", posMsg.GetX(), posMsg.GetY(), posMsg.GetZ())
 						sceneInfo.Player.Pos = &global.Position{
 							X: posMsg.GetX(),
 							Y: posMsg.GetY(),

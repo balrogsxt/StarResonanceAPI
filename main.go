@@ -1,12 +1,12 @@
 package main
 
 import (
-	"StarResonanceAPI/global"
-	"StarResonanceAPI/ncap"
 	_ "embed"
 	"flag"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/balrogsxt/StarResonanceAPI/global"
+	"github.com/balrogsxt/StarResonanceAPI/ncap"
 	"github.com/gin-gonic/gin"
 	"github.com/google/gopacket/pcap"
 	"log"
@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	networkCard   = flag.String("network", "auto", "请输入网卡描述完整名称,默认auto为自动选择")
+	networkCard   = flag.String("network", "", "请输入网卡描述完整名称,auto为自动选择")
 	port          = flag.Int("port", 8989, "默认API端口")
 	expireTime    = flag.Int64("expire", 10, "数据过期时间(秒),默认10s")
 	autoCheckTime = flag.Int("autoCheckTime", 3, "自动检查活动网卡时间(秒)")
@@ -31,6 +31,7 @@ func main() {
 		}
 	}()
 	flag.Parse()
+	log.Println("Github: https://github.com/balrogsxt/StarResonanceAPI")
 	var deviceName = *networkCard
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
@@ -44,25 +45,26 @@ func main() {
 			log.Println("监听数据包数量: ", active.PacketCount)
 			log.Println("监听数据包流量: ", fmt.Sprintf("%d 字节 (%.2f KB)", active.ByteCount, float64(active.ByteCount)/1024))
 			deviceName = active.Desc
-		} else {
-			var option string
-			options := make([]string, 0)
-			for _, device := range devices {
-				options = append(options, device.Description)
-			}
-			prompt := &survey.Select{
-				Message: "无法自动找到活动网卡,请手动选择活动网卡(可以在自己的网络设置中找到网卡查看描述):",
-				Options: options,
-			}
-			err := survey.AskOne(prompt, &option)
-			if err != nil {
-				log.Fatalf("选择操作错误: %s", err.Error())
-			}
-			if len(option) == 0 {
-				log.Fatalf("选择网卡为空")
-			}
-			deviceName = option
 		}
+	}
+	if deviceName == "" {
+		var option string
+		options := make([]string, 0)
+		for _, device := range devices {
+			options = append(options, device.Description)
+		}
+		prompt := &survey.Select{
+			Message: "无法自动找到活动网卡,请手动选择活动网卡(可以在自己的网络设置中找到网卡查看描述):",
+			Options: options,
+		}
+		err := survey.AskOne(prompt, &option)
+		if err != nil {
+			log.Fatalf("选择操作错误: %s", err.Error())
+		}
+		if len(option) == 0 {
+			log.Fatalf("选择网卡为空")
+		}
+		deviceName = option
 	}
 
 	// 加载怪物JSON列表

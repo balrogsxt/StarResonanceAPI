@@ -1,4 +1,4 @@
-module StarResonanceAPI
+module github.com/balrogsxt/StarResonanceAPI
 
 go 1.23.0
 
