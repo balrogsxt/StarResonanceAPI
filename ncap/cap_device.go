@@ -313,11 +313,9 @@ func (cd *CapDevice) reassembleTcpStream(tcp *layers.TCP, payload []byte, now ti
 	if cd.tcpNextSeq == 0 {
 		if len(payload) > 4 && binary.BigEndian.Uint32(payload) < 0x0fffff {
 			cd.tcpNextSeq = tcp.Seq
-			log.Println("可以i确定学列号")
 		} else {
 			// 无法确定初始序列号，使用当前包的序列号
 			cd.tcpNextSeq = tcp.Seq
-			log.Println("无法缺点序列号")
 		}
 	}
 	// 缓存TCP数据包
